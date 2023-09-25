@@ -1,4 +1,4 @@
-import { Span, trace } from "@opentelemetry/api";
+import { Span, trace, context, createContextKey } from "@opentelemetry/api";
 import { useState } from "react";
 import "./App.css";
 import { provider } from "./loadInstrumentation";
@@ -19,14 +19,29 @@ function App() {
               method: "GET",
             }
           );
-          await characterRequest;
+          // get currently active context after startActiveSpan
+          const ctx = context.active();
+
+          // create a context key to assign the active context to
+          const ctxKey = createContextKey('complex_flow_with_two_requests_key')
+
+          // explicitly set the context by wrapping async functions
+          context.with(ctx.setValue(ctxKey, 'character request'), async () => {
+            await characterRequest;
+          });
+
           const episodesRequest = fetch(
             "https://rickandmortyapi.com/api/episode",
             {
               method: "GET",
             }
           );
-          await episodesRequest;
+
+          // explicitly set the context by wrapping async functions
+          context.with(ctx.setValue(ctxKey, 'episode request'), async () => {
+            await episodesRequest;
+          });
+
         } catch (e) {
           setError("Something bad happened");
           console.log(e);
